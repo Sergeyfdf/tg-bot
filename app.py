@@ -1,44 +1,40 @@
-import os
 from flask import Flask, request
-from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters
+from telegram import Bot
+from telegram.ext import Dispatcher, CommandHandler, MessageHandler, Filters
 
-
-# Вставь токен прямо в код
-TOKEN = "7275976366:AAHKDh_lveIk6L3UtpJc33Wh89aU09-usFc"  # Замените на ваш токен бота
-
+# Инициализация Flask
 app = Flask(__name__)
 
-# Функция, которая будет обрабатывать команду /start
-async def start(update: Update, context):
-    await update.message.reply_text("Привет! Я бот.")
+# Твой токен для бота
+TOKEN = "7275976366:AAHKDh_lveIk6L3UtpJc33Wh89aU09-usFc"
+bot = Bot(token=TOKEN)
 
-# Функция для обработки текстовых сообщений
-async def echo(update: Update, context):
-    await update.message.reply_text(update.message.text)
+# Устанавливаем Webhook
+WEBHOOK_URL = "tg-bot-production-809d.up.railway.app/" + TOKEN  # Замените на свой URL на Railway
 
-# Устанавливаем webhook
-async def set_webhook():
-    url = f"tg-bot-production-b3d7.up.railway.app/{TOKEN}"
-    application = Application.builder().token(TOKEN).build()
-    application.bot.set_webhook(url)
+bot.set_webhook(url=WEBHOOK_URL)
 
-# Flask-обработчик для получения webhook запросов
-@app.route(f"/{TOKEN}", methods=["POST"])
+# Обработчик команд
+def start(update, context):
+    update.message.reply_text("Привет! Я бот!")
+
+def echo(update, context):
+    update.message.reply_text(update.message.text)
+
+# Инициализация Dispatcher
+dispatcher = Dispatcher(bot, update_queue=None)
+
+# Регистрируем обработчики
+dispatcher.add_handler(CommandHandler("start", start))
+dispatcher.add_handler(MessageHandler(Filters.text, echo))
+
+# Главная страница для обработки webhook запросов
+@app.route(f'/{TOKEN}', methods=['POST'])
 def webhook():
-    json_str = request.get_data().decode("UTF-8")
-    update = Update.de_json(json_str, application.bot)
-    application.update_queue.put(update)  # Отправка запроса на обработку
-    return "OK"
+    # Получаем обновление от Telegram
+    update = request.get_json()
+    dispatcher.process_update(update)
+    return 'OK', 200
 
-# Flask запуск
-if __name__ == "__main__":
-    application = Application.builder().token(TOKEN).build()
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
-
-    # Настроить webhook
-    set_webhook()
-
-    # Запуск Flask-сервера
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+if __name__ == '__main__':
+    app.run(host="0.0.0.0", port=5000)
