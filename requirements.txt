@@ -1,6 +1,2 @@
-python-dotenv
-httpx
-python-telegram-bot==20.0
-gunicorn==20.1.0
-Flask==2.2.0
-werkzeug==2.1.0
+flask
+python-telegram-bot==20.7

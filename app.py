@@ -1,40 +1,46 @@
+import logging
 from flask import Flask, request
-from telegram import Bot
-from telegram.ext import Dispatcher, CommandHandler, MessageHandler, Filters
+from telegram import Update
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
+import asyncio
 
-# Инициализация Flask
 app = Flask(__name__)
 
-# Твой токен для бота
-TOKEN = "7275976366:AAHKDh_lveIk6L3UtpJc33Wh89aU09-usFc"
-bot = Bot(token=TOKEN)
+# Вводим свой токен
+TELEGRAM_TOKEN = '7275976366:AAHKDh_lveIk6L3UtpJc33Wh89aU09-usFc'
 
-# Устанавливаем Webhook
-WEBHOOK_URL = "tg-bot-production-809d.up.railway.app/" + TOKEN  # Замените на свой URL на Railway
+# Обработчик команды /start
+async def start(update: Update, context: CallbackContext) -> None:
+    await update.message.reply_text('Привет, я твой бот!')
 
-bot.set_webhook(url=WEBHOOK_URL)
+# Основная функция для обработки сообщений
+async def echo(update: Update, context: CallbackContext) -> None:
+    await update.message.reply_text(update.message.text)
 
-# Обработчик команд
-def start(update, context):
-    update.message.reply_text("Привет! Я бот!")
-
-def echo(update, context):
-    update.message.reply_text(update.message.text)
-
-# Инициализация Dispatcher
-dispatcher = Dispatcher(bot, update_queue=None)
-
-# Регистрируем обработчики
-dispatcher.add_handler(CommandHandler("start", start))
-dispatcher.add_handler(MessageHandler(Filters.text, echo))
-
-# Главная страница для обработки webhook запросов
-@app.route(f'/{TOKEN}', methods=['POST'])
+# Настройка webhook
+@app.route('/webhook', methods=['POST'])
 def webhook():
-    # Получаем обновление от Telegram
-    update = request.get_json()
-    dispatcher.process_update(update)
-    return 'OK', 200
+    if request.method == "POST":
+        json_str = request.get_data().decode("UTF-8")
+        update = Update.de_json(json_str)
+        application.update_queue.put(update)  # передаем обновление в очередь
+        return "OK!"
+
+# Настройка бота
+async def set_webhook():
+    url = f"https://tg-bot-production-809d.up.railway.app/webhook"
+    application = Application.builder().token(TELEGRAM_TOKEN).build()
+    await application.bot.set_webhook(url)  # используем await для set_webhook
+    return application
+
+# Настройка диспетчера
+async def main():
+    application = await set_webhook()  # вызываем асинхронную функцию для установки webhook
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
+
+    # Запуск приложения на Flask
+    app.run(host="0.0.0.0", port=8080)
 
 if __name__ == '__main__':
-    app.run(host="0.0.0.0", port=5000)
+    asyncio.run(main())
