@@ -1,46 +1,43 @@
-import logging
 from flask import Flask, request
-from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
-import asyncio
+from telegram import Update, Bot
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
+
+TELEGRAM_TOKEN = "7275976366:AAHKDh_lveIk6L3UtpJc33Wh89aU09-usFc"  # 🔁 вставь свой токен сюда
+WEBHOOK_URL = "https://tg-bot-production-809d.up.railway.app"
 
 app = Flask(__name__)
+bot = Bot(token=TELEGRAM_TOKEN)
+application = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
 
-# Вводим свой токен
-TELEGRAM_TOKEN = '7275976366:AAHKDh_lveIk6L3UtpJc33Wh89aU09-usFc'
+# Команда /start
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Привет! Я работаю через webhook!")
 
-# Обработчик команды /start
-async def start(update: Update, context: CallbackContext) -> None:
-    await update.message.reply_text('Привет, я твой бот!')
+# Ответ на любое текстовое сообщение
+async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(f"Ты сказал: {update.message.text}")
 
-# Основная функция для обработки сообщений
-async def echo(update: Update, context: CallbackContext) -> None:
-    await update.message.reply_text(update.message.text)
+application.add_handler(CommandHandler("start", start))
+application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
 
-# Настройка webhook
-@app.route('/webhook', methods=['POST'])
-def webhook():
-    if request.method == "POST":
-        json_str = request.get_data().decode("UTF-8")
-        update = Update.de_json(json_str)
-        application.update_queue.put(update)  # передаем обновление в очередь
-        return "OK!"
+# Входящий webhook
+@app.route(f"/{TELEGRAM_TOKEN}", methods=["POST"])
+async def webhook():
+    update = Update.de_json(request.get_json(force=True), bot)
+    await application.process_update(update)
+    return "ok"
 
-# Настройка бота
-async def set_webhook():
-    url = f"https://tg-bot-production-809d.up.railway.app/webhook"
-    application = Application.builder().token(TELEGRAM_TOKEN).build()
-    await application.bot.set_webhook(url)  # используем await для set_webhook
-    return application
+# Проверочная страница
+@app.route("/")
+def index():
+    return "Бот работает! 🎉"
 
-# Настройка диспетчера
-async def main():
-    application = await set_webhook()  # вызываем асинхронную функцию для установки webhook
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
+# Установка webhook при старте
+async def setup_webhook():
+    await bot.set_webhook(url=f"{WEBHOOK_URL}/{TELEGRAM_TOKEN}")
+    print("Webhook установлен")
 
-    # Запуск приложения на Flask
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(setup_webhook())
     app.run(host="0.0.0.0", port=8080)
-
-if __name__ == '__main__':
-    asyncio.run(main())
