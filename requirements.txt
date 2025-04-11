@@ -1,2 +1,0 @@
-flask[async]
-python-telegram-bot==20.7
