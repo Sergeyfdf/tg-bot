@@ -11,7 +11,7 @@ GROCLOUD_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions"
 SEARCH_API_KEY = "AIzaSyAur8oQ3PhDcJlVfckw46d3bfAwmiNw6Q0"
 SEARCH_ENGINE_ID = "77cd2223d2fe0432f"
 
-ALLOWED_USER_ID = 2104542725 
+ALLOWED_USER_ID = 7321465307
 
 def init_db():
     conn = sqlite3.connect('user_history.db')
@@ -83,7 +83,7 @@ async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if is_search_request(user_input):
         results = await search_internet(user_input)
-        if isinstance(results, str):  # Если ошибка
+        if isinstance(results, str):
             await update.message.reply_text(results)
         else:
             result_text = "\n".join([f"{i+1}. {res['title']}: {res['link']}" for i, res in enumerate(results[:5])])
